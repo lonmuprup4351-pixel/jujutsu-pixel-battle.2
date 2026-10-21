@@ -1,1 +1,196 @@
+<!DOCTYPE html><html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jujutsu Pixel Battle Online</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #10131c;
+      color: white;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    main {
+      max-width: 500px;
+      margin: 30px auto;
+      padding: 20px;
+      background: #202638;
+      border-radius: 16px;
+    }
+    button, input {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 13px;
+      margin: 7px 0;
+      border: 0;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    button {
+      background: #7257e8;
+      color: white;
+      font-weight: bold;
+    }
+    input {
+      background: #fff;
+      color: #111;
+    }
+    #status {
+      min-height: 24px;
+      color: #8ef5b2;
+      overflow-wrap: anywhere;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>⚔️ Jujutsu Pixel Battle</h1>
+    <h3>ONLINE MULTIPLAYER</h3><p id="status">Đang kết nối máy chủ...</p>
 
+<button id="connect">Kết nối máy chủ</button>
+<button id="create">Tạo phòng</button>
+
+<input id="roomCode"
+  placeholder="Nhập mã phòng 6 chữ số"
+  inputmode="numeric"
+  maxlength="6">
+
+<button id="join">Tham gia phòng</button>
+<button id="start">Bắt đầu trận</button>
+
+<p>Mã phòng: <strong id="code">---</strong></p>
+<p>Người chơi trong phòng: <strong id="players">0/2</strong></p>
+<p id="battle">Chưa bắt đầu trận đấu.</p>
+
+  </main>  <script>
+    let socket;
+    let connected = false;
+    let inRoom = false;
+    let playerCount = 0;
+
+    const statusEl = document.getElementById("status");
+    const codeEl = document.getElementById("code");
+    const playersEl = document.getElementById("players");
+    const battleEl = document.getElementById("battle");
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    function connect() {
+      if (socket &&
+          (socket.readyState === WebSocket.OPEN ||
+           socket.readyState === WebSocket.CONNECTING)) {
+        setStatus("Đang kết nối hoặc đã kết nối.");
+        return;
+      }
+
+      const protocol =
+        location.protocol === "https:" ? "wss:" : "ws:";
+
+      socket = new WebSocket(
+        protocol + "//" + location.host
+      );
+
+      socket.onopen = () => {
+        connected = true;
+        setStatus("Đã kết nối máy chủ!");
+      };
+
+      socket.onmessage = (event) => {
+        let data;
+
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+
+        if (data.type === "created" ||
+            data.type === "joined") {
+          inRoom = true;
+          codeEl.textContent = data.code;
+          playerCount = data.players;
+          playersEl.textContent = playerCount + "/2";
+          setStatus("Đã vào phòng " + data.code);
+        }
+
+        if (data.type === "players") {
+          playerCount = data.players;
+          playersEl.textContent = playerCount + "/2";
+          setStatus("Số người chơi: " + playerCount + "/2");
+        }
+
+        if (data.type === "start") {
+          battleEl.textContent =
+            "Trận đấu đã được khởi động! Giao diện chiến đấu cần được tích hợp tiếp.";
+        }
+
+        if (data.type === "error") {
+          setStatus(data.message);
+        }
+
+        if (data.type === "opponent_left") {
+          setStatus("Đối thủ đã rời phòng.");
+          battleEl.textContent = "Trận đấu đã gián đoạn.";
+        }
+      };
+
+      socket.onclose = () => {
+        connected = false;
+        inRoom = false;
+        setStatus("Mất kết nối. Hãy kết nối lại.");
+      };
+
+      socket.onerror = () => {
+        setStatus("Không kết nối được máy chủ.");
+      };
+    }
+
+    function send(data) {
+      if (!socket ||
+          socket.readyState !== WebSocket.OPEN) {
+        setStatus("Hãy kết nối máy chủ trước.");
+        return;
+      }
+
+      socket.send(JSON.stringify(data));
+    }
+
+    document.getElementById("connect").onclick = connect;
+
+    document.getElementById("create").onclick = () => {
+      send({ type: "create" });
+    };
+
+    document.getElementById("join").onclick = () => {
+      const code =
+        document.getElementById("roomCode").value.trim();
+
+      if (!/^\d{6}$/.test(code)) {
+        setStatus("Hãy nhập mã phòng gồm 6 chữ số.");
+        return;
+      }
+
+      send({ type: "join", code });
+    };
+
+    document.getElementById("start").onclick = () => {
+      if (!inRoom) {
+        setStatus("Hãy tạo phòng hoặc tham gia phòng trước.");
+        return;
+      }
+
+      if (playerCount < 2) {
+        setStatus("Cần đủ 2 người chơi để bắt đầu.");
+        return;
+      }
+
+      send({ type: "start" });
+    };
+
+    connect();
+  </script></body>
+</html>
