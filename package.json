@@ -1,0 +1,16 @@
+{
+"name": "jujutsu-pixel-battle-online",
+"version": "1.0.0",
+"description": "Jujutsu Pixel Battle Online multiplayer game",
+"main": "server.js",
+"scripts": {
+"start": "node server.js"
+},
+"dependencies": {
+"express": "^4.21.2",
+"ws": "^8.18.0"
+},
+"engines": {
+"node": ">=18"
+}
+}
